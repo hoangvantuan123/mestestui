@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import SubHeaderFilter from './components/SubHeaderFilter';
-import SortingTable from './components/SortingTable';
+import SortingOrdersTable from './components/SortingOrdersTable';
 import PaginationBar from './components/PaginationBar';
 import BottomActionBar from './components/BottomActionBar';
 import FooterStatus from './components/FooterStatus';
@@ -23,6 +23,7 @@ import {
 
 export default function SortingStationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [runningOrders, setRunningOrders] = useState(initialRunningSortingOrders);
   const [completedOrders, setCompletedOrders] = useState(initialCompletedSortingOrders);
 
@@ -30,10 +31,11 @@ export default function SortingStationPage() {
   const [currentMachine, setCurrentMachine] = useState('SORT-G01');
   const [stationName, setStationName] = useState('Trạm Sorting Phân Loại G01');
   const [stationStatus, setStationStatus] = useState('Sẵn sàng');
+  const [shiftTeam, setShiftTeam] = useState(location.state?.shiftTeam || null);
   const [metrics, setMetrics] = useState({
-    quantity: '2,700 Pcs',
-    speed: '98.5%',
-    teamSpeed: '25 NG',
+    quantity: '0 Pcs',
+    speed: '—',
+    teamSpeed: '0 NG',
   });
 
   // Navigation & filtering state
@@ -53,6 +55,7 @@ export default function SortingStationPage() {
   const [isQuickScanOpen, setIsQuickScanOpen] = useState(false);
   const [isMaterialOpen, setIsMaterialOpen] = useState(false);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [completionOrders, setCompletionOrders] = useState([]);
   const [isDefectOpen, setIsDefectOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isMachineOpen, setIsMachineOpen] = useState(false);
@@ -167,28 +170,33 @@ export default function SortingStationPage() {
   };
 
   const handleCompleteOrder = () => {
-    if (!activeOrder) return;
+    const selected = selectedOrders.filter(o => runningOrders.some(r => r.id === o.id));
+    if (!selected.length) return showToast('Chọn chi tiết lệnh đang thực hiện để hoàn thành.', 'warning');
+    const masters = new Set(selected.map(o => o.stageOrder || o.stepOrder.replace(/\([^)]*\)$/, '')));
+    if (masters.size !== 1) return showToast('Vui lòng chọn các chi tiết thuộc cùng một lệnh công đoạn.', 'warning');
+    setCompletionOrders(selected);
     setIsCompleteModalOpen(true);
   };
 
   const handleCompleteConfirm = (data) => {
-    const completed = {
-      ...activeOrder,
-      status: 'Hoàn thành',
-      endTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+    const ids = new Set(data.orderIds || [data.orderId]);
+    const targets = runningOrders.filter(o => ids.has(o.id));
+    if (!targets.length) return;
+    const time = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' });
+    const record = o => {
+      const part = data.parts.find(p => p.id === o.id);
+      const report = { ...data, orderId: o.id, stepOrder: o.stepOrder, parts: [part], totalOK: part?.okQty || 0, totalNG: part?.ngQty || 0 };
+      return { ...o, completionReports: [...(o.completionReports || []), report],
+        status: data.completionMode === 'all' ? 'Hoàn thành' : o.status === 'Chờ' ? 'Đang chạy' : o.status,
+        ...(data.completionMode === 'all' ? { endTime: time } : {}) };
     };
-    setRunningOrders((prev) => prev.filter((o) => o.id !== activeOrder.id));
-    setCompletedOrders((prev) => [completed, ...prev]);
-    if (data?.totalOK) {
-      setMetrics((prev) => ({
-        ...prev,
-        quantity: `${data.totalOK} CT`,
-      }));
-    }
-    showToast(
-      `Đã hoàn thành lệnh ${activeOrder.stepOrder}: Đạt ${data.totalOK} Pcs, Lỗi ${data.totalNG} Pcs`,
-      'success'
-    );
+    if (data.completionMode === 'all') {
+      setRunningOrders(prev => prev.filter(o => !ids.has(o.id)));
+      setCompletedOrders(prev => [...targets.map(record), ...prev]);
+      setCheckedOrderIds(prev => prev.filter(id => !ids.has(id)));
+    } else setRunningOrders(prev => prev.map(o => ids.has(o.id) ? record(o) : o));
+    setMetrics(prev => ({ ...prev, quantity: `${data.totalOK} Pcs` }));
+    showToast(`Đã ghi nhận ${data.completionMode === 'all' ? 'toàn bộ' : 'một phần'} cho ${targets.length} chi tiết của lệnh ${targets[0].stageOrder || targets[0].stepOrder}`, 'success');
   };
 
   const handleMaterialConfirm = (data) => {
@@ -257,10 +265,11 @@ export default function SortingStationPage() {
 
   const handleMachineSelect = (mach) => {
     setCurrentMachine(mach.id);
+    setShiftTeam(mach.team ? { name: mach.team, leader: mach.leader, count: mach.members.length } : null);
     setStationName(mach.name);
-    if (mach.type === 'rework') {
+    if (mach.type !== 'sorting') {
       showToast(`Chuyển sang ${mach.name}...`, 'info');
-      navigate('/rework');
+      navigate(`/${mach.type}`, { state: { shiftTeam: mach.team ? { name: mach.team, leader: mach.leader, count: mach.members.length } : null } });
     } else {
       showToast(`Đã chuyển sang vận hành máy: ${mach.id} - ${mach.name}`, 'info');
     }
@@ -323,7 +332,7 @@ export default function SortingStationPage() {
 
       {/* 3. Main Sorting Data Table */}
       <main className="mes-table-section">
-        <SortingTable
+        <SortingOrdersTable
           orders={paginatedOrders}
           selectedOrderId={activeOrder?.id}
           onSelectOrder={handleSelectOrder}
@@ -352,6 +361,7 @@ export default function SortingStationPage() {
         activeOrder={activeOrder}
         onStartOrder={handleStartOrder}
         onCompleteOrder={handleCompleteOrder}
+        completionCount={selectedOrders.filter(o => runningOrders.some(r => r.id === o.id)).length}
         onGetMaterial={() => setIsMaterialOpen(true)}
         onFinishDefect={() => setIsDefectOpen(true)}
         onReceiveLTT={() => showToast('Tiếp nhận lệnh thao tác thành công.', 'info')}
@@ -363,9 +373,9 @@ export default function SortingStationPage() {
 
       {/* 6. Footer Status */}
       <FooterStatus
-        team="TỔ SORTING ST01"
-        leader="—"
-        members="—"
+        team={shiftTeam?.name || 'TỔ SORTING ST01'}
+        leader={shiftTeam?.leader || '—'}
+        members={shiftTeam ? String(shiftTeam.count) : '—'}
         shiftStart="08:00 16/10/2026"
         onChangeMachine={() => setIsMachineOpen(true)}
         onEndShift={() => setIsEndShiftOpen(true)}
@@ -383,7 +393,8 @@ export default function SortingStationPage() {
       <CompleteOrderModal
         isOpen={isCompleteModalOpen}
         onClose={() => setIsCompleteModalOpen(false)}
-        order={activeOrder}
+        order={completionOrders[0] || activeOrder}
+        orders={completionOrders}
         importWarehouse={currentWorkshopWarehouse}
         onConfirm={handleCompleteConfirm}
       />

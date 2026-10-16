@@ -1,3 +1,4 @@
+import MaterialMaster from './MaterialMaster';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -32,9 +33,9 @@ export default function MaterialModal({ isOpen, onClose, order, orders = [], onC
   const targetOrders = (orders && orders.length > 0) ? orders : (order ? [order] : []);
 
   const [materialRows, setMaterialRows] = useState([]);
-  const [objectEntity, setObjectEntity] = useState('GS5: Nhà máy Goldsun Quế Võ 5'); // 9. Đối tượng (cho edit)
+  const [objectEntity, setObjectEntity] = useState('GS5.PX1A.03.04: Tổ hoàn thiện hộp'); // 9. Đối tượng (cho edit)
   const creatorUser = 'it06: Hoàng Văn Tuấn (Trạm Sorting/Rework G01)'; // a. Người tạo (Khóa theo tài khoản MES)
-  const [department, setDepartment] = useState('PX-RW01: Phân xưởng Rework / Sorting G01'); // c. Bộ phận (cho edit)
+  const [department, setDepartment] = useState('GS5.PX1A.04.02.02: Nhóm TTSX - Tổ hoàn thiện hộp'); // c. Bộ phận (cho edit)
   const [importWarehouse, setImportWarehouse] = useState('GS5-PXU-05: Kho TD PX 1B - QV1'); // d. Kho nhập PX (cho edit)
   const [noteDescription, setNoteDescription] = useState('');
   const [searchFilter, setSearchFilter] = useState('');
@@ -47,55 +48,19 @@ export default function MaterialModal({ isOpen, onClose, order, orders = [], onC
       const orderCodes = targetOrders.map((o) => o.stepOrder).join(', ');
 
       if (isSortingOrder) {
-        setNoteDescription(`[MES Shopfloor] Tiếp nhận các con hàng chính theo lệnh Sorting: ${orderCodes} (Không dùng NVL phụ tùng) - Trạm Sorting G01`);
-
-        const rows = [];
-        let counter = 1;
-        targetOrders.forEach((ord) => {
-          if (ord.products && ord.products.length > 0) {
-            ord.products.forEach((p) => {
-              const pQty = parseFloat(String(p.qty || '100').replace(/,/g, '')) || 100;
-              rows.push({
-                id: counter++,
-                orderCode: ord.stepOrder,
-                parentProduct: ord.stepOrder,
-                itemCode: p.itemCode,
-                itemName: p.itemName,
-                unit: p.unit || 'Pcs',
-                orderQty: pQty,
-                pastRequestedQty: 0.0,
-                exportedQty: pQty,
-                requestQty: pQty,
-                requestDvtQty: pQty,
-                stockQty: pQty * 2,
-                exportWarehouse: 'GS5-TPH-01',
-                stepOrderFull: `${ord.stepOrder} | ${ord.date || '27/06/2026'} | ${p.itemCode}`,
-                isMainProduct: true,
-                description: p.description || '',
-              });
-            });
-          } else {
-            const qtyNum = parseFloat(String(ord.reworkQty || '20').replace(/,/g, '')) || 20;
-            rows.push({
-              id: counter++,
-              orderCode: ord.stepOrder,
-              parentProduct: ord.productName || ord.productCode,
-              itemCode: ord.productCode,
-              itemName: ord.productName,
-              unit: 'Pcs',
-              orderQty: qtyNum,
-              pastRequestedQty: 0.0,
-              exportedQty: qtyNum,
-              requestQty: qtyNum,
-              requestDvtQty: qtyNum,
-              stockQty: 1246.0,
-              exportWarehouse: 'GS5-TPH-01',
-              stepOrderFull: `${ord.stepOrder} | ${ord.date || '15/10/2026'} | ${ord.productCode}`,
-              isMainProduct: true,
-            });
-          }
-        });
-        setMaterialRows(rows);
+        setNoteDescription(`[MES Shopfloor] Tiếp nhận hàng theo chi tiết lệnh Sorting: ${orderCodes}`);
+        setMaterialRows(targetOrders.map(ord => {
+          const qty = Number(String(ord.reworkQty || '0').replace(/,/g, '')) || 0;
+          return {
+            id: ord.id, orderCode: ord.stepOrder, parentProduct: ord.productName,
+            itemCode: ord.productCode, itemName: ord.productName, unit: ord.unit || 'Pcs',
+            orderQty: qty, pastRequestedQty: 0, exportedQty: qty,
+            requestQty: qty, requestDvtQty: qty, stockQty: ord.stockQty ?? qty * 2,
+            exportWarehouse: 'GS5-TPH-01',
+            stepOrderFull: `${ord.stepOrder} | ${ord.date} | ${ord.productCode}`,
+            isMainProduct: true, description: ord.description || '',
+          };
+        }));
       } else {
         setNoteDescription(`[MES Shopfloor] Đề xuất xuất kho NVL chính theo lệnh: ${orderCodes} - Trạm Sorting/Rework G01`);
 
@@ -219,191 +184,22 @@ export default function MaterialModal({ isOpen, onClose, order, orders = [], onC
         className="mes-modal-box mes-material-redesigned-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Flat Enterprise Header - Sharp Corners, No Shadow */}
         <div className="mes-material-header">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-700 text-white flex items-center justify-center rounded-[2px]">
-              <Package size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-[14px] font-bold text-slate-900 tracking-tight">
-                  {isSortingOrder
-                    ? 'Tiếp nhận / Xuất các Con Hàng Chính (Sorting)'
-                    : 'Đề nghị Xuất kho Nguyên vật liệu (NVL)'}
-                </h2>
-                <span className="bg-slate-100 text-slate-800 text-[11px] px-2 py-0.5 border border-slate-300 font-mono font-bold rounded-[2px]">
-                  Mã phiếu: IR2610-000047
-                </span>
-                <span className="bg-blue-50 text-blue-800 text-[11px] px-2 py-0.5 border border-blue-200 font-semibold rounded-[2px]">
-                  {isSortingOrder ? 'Sorting: Con hàng chính' : 'Phân loại: X01: Xuất theo lệnh'}
-                </span>
-                {isSortingOrder && (
-                  <span className="bg-emerald-50 text-emerald-800 text-[11px] px-2 py-0.5 border border-emerald-300 font-semibold rounded-[2px]">
-                    Không dùng NVL phụ tùng
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2">
-                <span>Trạm Sorting/Rework G01</span>
-                <span>•</span>
-                <span>Ngày: 15/10/2026</span>
-                <span>•</span>
-                <span className="text-slate-700 font-medium">
-                  {targetOrders.length === 1 ? (
-                    <>Lệnh sản xuất: <strong className="font-mono text-blue-800">{targetOrders[0].stepOrder}</strong></>
-                  ) : (
-                    <>Đang chọn: <strong className="font-mono text-blue-800">{targetOrders.length} lệnh sản xuất</strong></>
-                  )}
-                </span>
-              </p>
+          <div className="material-dialog-heading">
+            <span className="material-dialog-icon"><Package size={18} /></span>
+            <div><h2>{isSortingOrder ? 'Tiếp nhận hàng Sorting' : 'Lấy nguyên vật liệu'}</h2>
+              <p>{isSortingOrder ? 'Mặt hàng theo chi tiết lệnh Sorting' : 'Yêu cầu cấp NVL cho lệnh Rework'} · {targetOrders.length === 1 ? targetOrders[0].stepOrder : targetOrders.length + ' lệnh được chọn'}</p>
             </div>
           </div>
-
-          <button
-            type="button"
-            className="w-8 h-8 border border-slate-300 text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer rounded-[2px]"
-            onClick={onClose}
-            title="Đóng cửa sổ"
-          >
-            <X size={18} />
-          </button>
+          <button type="button" className="material-dialog-close" onClick={onClose} title="Đóng cửa sổ" aria-label="Đóng lấy vật liệu"><X size={18} /></button>
         </div>
-
-        {/* Master Form Section - 2 Columns Layout for Easy Cross-Referencing */}
-        <div className="bg-slate-50 border-b border-slate-300 px-6 py-3 text-xs flex-shrink-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-2">
-            {/* CỘT TRÁI: Lệnh, Đối tượng & Phân loại */}
-            <div className="space-y-2">
-              {/* 8. Lệnh công đoạn */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <FileText size={13} className="text-blue-700" />
-                  <span>8. Lệnh công đoạn:</span>
-                </span>
-                <input
-                  type="text"
-                  readOnly
-                  disabled
-                  value={targetOrders.map((o) => o.stepOrder).join(', ')}
-                  className="w-full text-xs font-mono font-bold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-100 text-blue-900 cursor-not-allowed select-none"
-                  title="Danh sách các lệnh công đoạn được chọn"
-                />
-              </div>
-
-              {/* 9. Đối tượng (Cho phép chọn/edit) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Package size={13} className="text-blue-700" />
-                  <span>9. Đối tượng:</span>
-                </span>
-                <select
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none cursor-pointer"
-                  value={objectEntity}
-                  onChange={(e) => setObjectEntity(e.target.value)}
-                >
-                  {OBJECT_ENTITY_OPTIONS.map((opt) => (
-                    <option key={opt.code} value={opt.name}>
-                      {opt.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Phân loại xuất kho */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <CheckCircle2 size={13} className="text-emerald-700" />
-                  <span>Phân loại xuất:</span>
-                </span>
-                <input
-                  type="text"
-                  readOnly
-                  disabled
-                  value="X01: Xuất theo lệnh sản xuất / Rework"
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-100 text-slate-800 cursor-not-allowed select-none"
-                />
-              </div>
-            </div>
-
-            {/* CỘT PHẢI: Người tạo, Bộ phận, Kho nhập PX */}
-            <div className="space-y-2">
-              {/* a. Người tạo phiếu (Khóa theo tài khoản MES) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <AlertCircle size={12} className="text-slate-500" />
-                  <span>a. Người tạo phiếu:</span>
-                </span>
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    readOnly
-                    disabled
-                    value={creatorUser}
-                    className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-200/80 text-slate-800 cursor-not-allowed select-none truncate"
-                    title="Người tạo phiếu khóa cố định theo tài khoản đăng nhập MES"
-                  />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9.5px] font-bold text-slate-500 bg-slate-300/80 px-1 py-0.2 rounded-[2px]">
-                    MES User
-                  </span>
-                </div>
-              </div>
-
-              {/* c. Bộ phận (Cho phép chọn/edit) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Layers size={13} className="text-indigo-700" />
-                  <span>c. Bộ phận:</span>
-                </span>
-                <select
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none cursor-pointer"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                >
-                  {DEPARTMENT_OPTIONS.map((dept) => (
-                    <option key={dept.code} value={dept.name}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* d. Mã kho phân xưởng (Kho nhập đích - Cho phép chọn/edit) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Layers size={13} className="text-emerald-700" />
-                  <span>d. Kho nhập PX:</span>
-                </span>
-                <select
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none cursor-pointer"
-                  value={importWarehouse}
-                  onChange={(e) => setImportWarehouse(e.target.value)}
-                >
-                  {WORKSHOP_WAREHOUSE_OPTIONS.map((wh) => (
-                    <option key={wh.code} value={wh.name}>
-                      {wh.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Hàng full-width: Diễn giải / Ghi chú */}
-            <div className="lg:col-span-2 flex items-center gap-2 pt-1.5 border-t border-slate-200">
-              <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                <FileText size={13} className="text-amber-700" />
-                <span>Diễn giải / Ghi chú:</span>
-              </span>
-              <input
-                type="text"
-                className="w-full text-xs border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none font-mono"
-                value={noteDescription}
-                onChange={(e) => setNoteDescription(e.target.value)}
-                placeholder="Thông tin diễn giải xuất kho NVL theo lệnh..."
-              />
-            </div>
-          </div>
-        </div>
+        <MaterialMaster
+          targetOrders={targetOrders} isSortingOrder={isSortingOrder} creatorUser={creatorUser}
+          objectEntity={objectEntity} setObjectEntity={setObjectEntity}
+          department={department} setDepartment={setDepartment}
+          importWarehouse={importWarehouse} setImportWarehouse={setImportWarehouse}
+          noteDescription={noteDescription} setNoteDescription={setNoteDescription}
+        />
 
         {/* Action & Filter Strip */}
         <div className="bg-white border-b border-slate-300 px-5 py-2 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
@@ -431,7 +227,7 @@ export default function MaterialModal({ isOpen, onClose, order, orders = [], onC
             </div>
 
             <div className="text-xs bg-slate-100 border border-slate-300 px-3 py-1.5 font-medium text-slate-700 rounded-[2px] whitespace-nowrap">
-              <span>Số lượng NVL: <strong className="text-slate-900 font-bold">{filteredRows.length}</strong></span>
+              <span>{isSortingOrder ? 'Số mặt hàng: ' : 'Số lượng NVL: '} <strong className="text-slate-900 font-bold">{filteredRows.length}</strong></span>
               <span className="text-slate-300 mx-2">|</span>
               <span>Tổng SL xuất: <strong className="text-blue-900 font-mono font-bold">{totalRequestedQty.toLocaleString()} Pcs</strong></span>
             </div>
@@ -453,24 +249,24 @@ export default function MaterialModal({ isOpen, onClose, order, orders = [], onC
               </button>
             </div>
           ) : (
-            <table className="w-full border-collapse text-left text-xs">
+            <table className="material-detail-grid w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold text-[11px] uppercase tracking-tight sticky top-0 z-10">
                   <th className="py-2.5 px-3 text-center w-12 border-r border-slate-200">#</th>
                   <th className="py-2.5 px-3 w-44 border-r border-slate-200">
-                    {isSortingOrder ? 'Mã con hàng' : 'Mã NVL'}
+                    {isSortingOrder ? 'Mã hàng' : 'Mã NVL'}
                   </th>
                   <th className="py-2.5 px-3 min-w-[280px] border-r border-slate-200">
-                    {isSortingOrder ? 'Tên con hàng chính cần Sorting' : 'Tên nguyên vật liệu, linh kiện'}
+                    {isSortingOrder ? 'Tên vật tư, hàng hóa' : 'Tên nguyên vật liệu, linh kiện'}
                   </th>
                   <th className="py-2.5 px-2.5 text-center w-16 border-r border-slate-200">ĐVT</th>
                   <th className="py-2.5 px-3 w-44 border-r border-slate-200">Lệnh công đoạn</th>
                   <th className="py-2.5 px-3 text-right w-36 border-r border-slate-200 bg-slate-50">
-                    {isSortingOrder ? 'SL con hàng theo lệnh' : 'SL theo lệnh'}
+                    {isSortingOrder ? 'SL theo chi tiết lệnh' : 'SL theo lệnh'}
                   </th>
                   <th className="py-2.5 px-3 text-right w-44 border-r border-slate-200 bg-slate-50">Tồn kho khả dụng</th>
                   <th className="py-2.5 px-3 text-center w-72 border-r border-slate-200 bg-blue-50/40">
-                    {isSortingOrder ? 'SL tiếp nhận / xuất (Sửa)' : 'SL đề xuất xuất (Sửa)'}
+                    {isSortingOrder ? 'SL tiếp nhận' : 'SL đề nghị xuất'}
                   </th>
                   <th className="py-2.5 px-3 min-w-[240px] border-r border-slate-200">Kho xuất (Nguồn cấp)</th>
                   <th className="py-2.5 px-2 text-center w-14">Xóa</th>
@@ -615,7 +411,7 @@ export default function MaterialModal({ isOpen, onClose, order, orders = [], onC
         <div className="mes-material-bottom-bar">
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="text-slate-500">Mặt hàng NVL:</span>
+              <span className="text-slate-500">{isSortingOrder ? 'Mặt hàng Sorting:' : 'Mặt hàng NVL:'}</span>
               <strong className="text-slate-800 font-bold bg-slate-100 border border-slate-300 px-2 py-0.5 rounded-[2px]">
                 {totalItems} mặt hàng
               </strong>
@@ -663,7 +459,7 @@ export default function MaterialModal({ isOpen, onClose, order, orders = [], onC
               }}
             >
               <Check size={16} className="stroke-[2.5]" />
-              <span>Đồng ý đề nghị xuất kho</span>
+              <span>{isSortingOrder ? 'Xác nhận tiếp nhận' : 'Xác nhận lấy NVL'}</span>
             </button>
           </div>
         </div>

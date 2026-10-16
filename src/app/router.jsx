@@ -2,6 +2,7 @@ import React from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import ReworkStationPage from '../features/station/ReworkStationPage';
 import SortingStationPage from '../features/station/SortingStationPage';
+import ProductionStationPage from '../features/production/ProductionStationPage';
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +16,10 @@ export const router = createBrowserRouter([
   {
     path: '/sorting',
     element: <SortingStationPage />,
+  },
+  {
+    path: '/production',
+    element: <ProductionStationPage />,
   },
   {
     path: '/app',

@@ -1,31 +1,27 @@
-# SkillHub frontend
+# MES — giao diện gốc trong một file
 
-Đặc tả chức năng, ranh giới module và cấu trúc thư mục mục tiêu: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Chỉ gửi `MES-Demo.html`. Nhấp đúp mở trực tiếp trong Chrome/Edge, không cần cài đặt, máy chủ hay kết nối mạng.
 
-React JSX + Vite, JavaScript thuần. Giao diện lấy bố cục ảnh tham khảo: thanh menu xanh, thanh tài khoản, banner và thẻ thao tác. Không có point, VIP hay thanh toán.
+Bản này dùng lại thành phần giao diện gốc: Rework, Sorting, chi tiết lệnh và các tab, xuất vật tư, nghiệm thu/hoàn thành, ghi nhận lỗi, đổi máy và kết thúc ca. Dữ liệu là mẫu trong bộ nhớ, không có backend hoặc ghi nhận nghiệp vụ thật. Tải lại để khôi phục mẫu.
 
-## Chạy
+CSS, JavaScript và icon SVG được nhúng vào HTML. React được đóng gói sẵn để giữ đúng giao diện và tương tác bên trong; người nhận không cần cài React. Không tải font bên ngoài, dùng font hệ thống dự phòng nên nét chữ có thể khác bản dùng Google Fonts.
 
-```sh
-npm install
-npm run dev
-```
+## Dựng lại sau khi sửa giao diện
 
-`npm run build` tạo bản production trong `dist/`.
+Chạy `npm ci`, sau đó `npm run build`. Script `scripts/build-single.mjs` đóng gói trực tiếp các thành phần trong `src/` vào `MES-Demo.html`, đổi điều hướng sang hash để mở được từ file. Không sửa thủ công HTML sinh ra. Entry riêng bỏ các provider tài khoản/toast không dùng cho trạm.
 
-## Cấu trúc
+Bản tối giản 14,7 KB đã được thay thế bằng bản giữ đầy đủ giao diện bên trong.
 
-- `src/components`: layout và thành phần tái sử dụng.
-- `src/pages`: trang tổng quan và khung các phân hệ (tải khi cần).
-- `src/data/navigation.js`: danh mục điều hướng.
-- `src/styles.css`: token màu, bố cục, responsive và accessibility.
+## Sửa giao diện React
 
-## Phạm vi hiện tại
+Chạy `npm run dev` và mở `http://127.0.0.1:5173/` để xem mã nguồn hiện tại. `MES-Demo.html` là bản đóng gói trước đó, không tự cập nhật theo thay đổi trong `src/`.
 
-Trang tổng quan bám ảnh tham khảo, menu điều hướng bằng URL hash, hướng dẫn dạng dialog, menu tài khoản và thông báo. Các phân hệ khác hiển thị rõ trạng thái chưa có dữ liệu, chưa triển khai nghiệp vụ. Không có backend, tài khoản thật, lưu dữ liệu hoặc tổ chức thi thật.
+Màn hình đổi máy mới ở `src/features/station/components/modals/ChangeMachineModal.jsx`, CSS đi kèm trong `change-machine.css`. Màn hình có dữ liệu tổ/thành viên mẫu, chọn thiết bị rồi xác nhận lên ca. Nút đăng nhập lại chỉ đặt lại chọn thiết bị trong bản demo, chưa tích hợp đăng nhập thật.
 
-## Hướng mở rộng
+## Máy sản xuất thường
 
-Tách từng phân hệ thành `src/features/{learning,questions,assessments,examinations,reports}` gồm pages/components/services. Đặt kết nối API trong `src/services`, cấu hình qua biến môi trường công khai, không đưa bí mật vào frontend. Backend chịu trách nhiệm phân quyền, thời gian thi, phiên bản đề và chấm điểm. Triển khai từng luồng hoàn chỉnh và thêm phân trang phía server khi dữ liệu lớn.
+Mở `http://127.0.0.1:5173/production` hoặc chọn `HN-BE-TC01 · Máy bế thủ công 1800` trong màn hình đổi máy. Mã nguồn nằm trong `src/features/production/`, chuyển từ file tham khảo `hoan-thanh-nvl.html` sang React JSX; không nhúng iframe hoặc chạy script HTML cũ.
 
-Hiệu năng: trang module được lazy-load, icon import riêng, không dùng font từ xa hoặc bộ UI lớn. Cần đo trên thiết bị thật và với dữ liệu thật trước khi cam kết tốc độ. Responsive ở các mốc 600px/1100px, hỗ trợ reduced-motion và focus bàn phím.
+`ProductionStationPage.jsx` chứa bảng lệnh và thao tác máy thường. `components/CompleteProductionModal.jsx` chứa các tab Thông tin chung / Khai báo lỗi, hoàn thành một phần/toàn bộ. `ProductionErrorRows.jsx` dùng chung cho bảng lỗi chung và từng NVL. `data/demoProduction.js` chứa dữ liệu mẫu. CSS được giới hạn trong `.production-station` để không thay đổi màn hình Rework/Sorting.
+
+Các thao tác là demo trong bộ nhớ. Lấy vật liệu, hoàn vật tư và vận hành máy hiện thông báo mô phỏng; chưa có chứng từ kho/API. File `MES-Demo.html` chưa được đóng gói lại với màn hình mới.

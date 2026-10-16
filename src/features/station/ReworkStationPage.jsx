@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from './components/Header';
 import SubHeaderFilter from './components/SubHeaderFilter';
 import SortingTable from './components/SortingTable';
@@ -18,6 +18,7 @@ import { initialRunningOrders, initialCompletedOrders } from './data/mockOrders'
 
 export default function ReworkStationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [runningOrders, setRunningOrders] = useState(initialRunningOrders);
   const [completedOrders, setCompletedOrders] = useState(initialCompletedOrders);
 
@@ -25,6 +26,7 @@ export default function ReworkStationPage() {
   const [currentMachine, setCurrentMachine] = useState('RWK-G01');
   const [stationName, setStationName] = useState('Trạm Rework Sửa Chữa G01');
   const [stationStatus, setStationStatus] = useState('Sẵn sàng');
+  const [shiftTeam, setShiftTeam] = useState(location.state?.shiftTeam || null);
   const [metrics, setMetrics] = useState({ quantity: '0 CT', speed: '0 /h', teamSpeed: '0 /h' });
 
   // Navigation & filtering state
@@ -155,21 +157,21 @@ export default function ReworkStationPage() {
   };
 
   const handleCompleteConfirm = (data) => {
-    const completed = {
-      ...activeOrder,
-      status: 'Hoàn thành',
-      endTime: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setRunningOrders((prev) => prev.filter((o) => o.id !== activeOrder.id));
-    setCompletedOrders((prev) => [completed, ...prev]);
-    setMetrics((prev) => ({
-      ...prev,
-      quantity: `${data.totalOK} CT`,
-    }));
-    showToast(
-      `Đã hoàn thành lệnh ${activeOrder.stepOrder}: Đạt ${data.totalOK} Pcs, Lỗi ${data.totalNG} Pcs (Tỉ lệ đạt ${data.passRate}%)`,
-      'success'
-    );
+    const order = runningOrders.find(o => o.id === data.orderId);
+    if (!order) return;
+    const reports = [...(order.completionReports || []), data];
+    if (data.completionMode === 'all') {
+      const completed = { ...order, status: 'Hoàn thành', completionReports: reports,
+        endTime: new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }) };
+      setRunningOrders(prev => prev.filter(o => o.id !== order.id));
+      setCompletedOrders(prev => [completed, ...prev]);
+    } else {
+      setRunningOrders(prev => prev.map(o => o.id === order.id ? {
+        ...o, status: o.status === 'Chờ' ? 'Đang chạy' : o.status, completionReports: reports,
+      } : o));
+    }
+    setMetrics(prev => ({ ...prev, quantity: `${data.totalOK} CT` }));
+    showToast(`Đã ghi nhận hoàn thành ${data.completionMode === 'all' ? 'toàn bộ' : 'một phần'} lệnh ${order.stepOrder}: Đạt ${data.totalOK} Pcs, Lỗi ${data.totalNG} Pcs`, 'success');
   };
 
   const handleChangeOrderSeq = () => {
@@ -183,10 +185,11 @@ export default function ReworkStationPage() {
 
   const handleMachineSelect = (mach) => {
     setCurrentMachine(mach.id);
+    setShiftTeam(mach.team ? { name: mach.team, leader: mach.leader, count: mach.members.length } : null);
     setStationName(mach.name);
-    if (mach.type === 'sorting') {
+    if (mach.type !== 'rework') {
       showToast(`Chuyển sang ${mach.name}...`, 'info');
-      navigate('/sorting');
+      navigate(`/${mach.type}`, { state: { shiftTeam: mach.team ? { name: mach.team, leader: mach.leader, count: mach.members.length } : null } });
     } else {
       showToast(`Đã chuyển sang vận hành máy: ${mach.id} - ${mach.name}`, 'info');
     }
@@ -291,9 +294,9 @@ export default function ReworkStationPage() {
 
       {/* 6. Footer Status */}
       <FooterStatus
-        team="TỔ REWORK R01"
-        leader="—"
-        members="—"
+        team={shiftTeam?.name || 'TỔ REWORK R01'}
+        leader={shiftTeam?.leader || '—'}
+        members={shiftTeam ? String(shiftTeam.count) : '—'}
         shiftStart="10:23 16/10/2026"
         onChangeMachine={() => setIsMachineOpen(true)}
         onEndShift={() => setIsEndShiftOpen(true)}

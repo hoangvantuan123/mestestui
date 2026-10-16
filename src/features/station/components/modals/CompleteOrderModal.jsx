@@ -1,3 +1,4 @@
+import CompleteOrderMaster from './CompleteOrderMaster';
 import React, { useState, useEffect } from 'react';
 import {
   X,
@@ -75,15 +76,18 @@ export default function CompleteOrderModal({
   isOpen,
   onClose,
   order,
+  orders = null,
   importWarehouse = 'GS5-PXU-05: Kho TD PX 1B - QV1',
   onConfirm
 }) {
   const [parts, setParts] = useState([]);
+  const [quantity, setQuantity] = useState(0);
+  const [completionMode, setCompletionMode] = useState('partial');
 
   // Master fields:
-  const [objectEntity, setObjectEntity] = useState('GS5: Nhà máy Goldsun Quế Võ 5'); // 9. Đối tượng (cho edit)
+  const [objectEntity, setObjectEntity] = useState('GS5.PX1A.03.04: Tổ hoàn thiện hộp'); // 9. Đối tượng (cho edit)
   const creatorUser = 'it06: Hoàng Văn Tuấn (Trạm Sorting/Rework G01)'; // a. Người tạo phiếu (Khóa theo tài khoản MES)
-  const [department, setDepartment] = useState('PX-RW01: Phân xưởng Rework / Sorting G01'); // c. Bộ phận (cho edit)
+  const [department, setDepartment] = useState('GS5.PX1A.04.02.02: Nhóm TTSX - Tổ hoàn thiện hộp'); // c. Bộ phận (cho edit)
   const [workshopWarehouse, setWorkshopWarehouse] = useState(importWarehouse); // d. Mã kho PX (cho edit, mặc định lấy từ kho nhập NVL)
 
   const [workersCount, setWorkersCount] = useState(2); // Số lượng nhân công (cho phép sửa)
@@ -98,24 +102,18 @@ export default function CompleteOrderModal({
   // Nạp dữ liệu khi mở modal hoặc đổi lệnh
   useEffect(() => {
     if (isOpen && order) {
-      const qtyNum = parseFloat(String(order.reworkQty || '20').replace(/,/g, '')) || 20;
+      setCompletionMode('partial');
+      const qtyNum = Number(String(order.reworkQty ?? '0').replace(/,/g, '')) || 0;
+      setQuantity(qtyNum);
 
       // 1. Bung danh sách các con hàng chính (nếu là Sorting) hoặc NVL theo BOM (nếu là Rework)
       let initialParts = [];
-      if (isSortingOrder && order.products && order.products.length > 0) {
-        initialParts = order.products.map((item, idx) => {
-          const itemQty = parseFloat(String(item.qty || '100').replace(/,/g, '')) || 100;
-          return {
-            id: idx + 1,
-            code: item.itemCode,
-            name: item.itemName,
-            unit: item.unit || 'Pcs',
-            orderQty: itemQty,
-            stockQty: item.stockQty !== undefined ? item.stockQty : itemQty * 2,
-            okQty: itemQty, // Mặc định điền đủ số lượng đạt theo con hàng
-            ngQty: 0,
-            note: item.description || '',
-          };
+      if (isSortingOrder) {
+        initialParts = (orders?.length ? orders : [order]).map(item => {
+          const qty = Number(String(item.reworkQty || '0').replace(/,/g, '')) || 0;
+          return { id: item.id, code: item.productCode, name: item.productName,
+            unit: item.unit || 'Pcs', orderQty: qty, stockQty: item.stockQty ?? qty * 2,
+            okQty: qty, ngQty: 0, note: item.stepOrder };
         });
       } else {
         const bomItems = getOrderBOM(order.productCode);
@@ -153,10 +151,12 @@ export default function CompleteOrderModal({
       // 5. Ghi chú diễn giải mặc định
       setNoteDescription(`[MES Shopfloor] Nghiệm thu hoàn thành lệnh ${order.stepOrder} — Thời gian chạy: ${hours}h (${start} ➔ ${end})`);
     }
-  }, [isOpen, order, importWarehouse]);
+  }, [isOpen, order, orders, importWarehouse]);
 
   // Lấy phân loại chuẩn từ master (Cố định, không cho sửa)
-  const classification = resolveClassification(order?.category);
+  const classification = isSortingOrder && orders?.length > 1
+    ? [...new Set(orders.map(o => resolveClassification(o.category)))].join(' / ')
+    : resolveClassification(order?.category);
 
   // Thao tác cập nhật số lượng OK / NG của từng linh kiện
   const handleUpdateQty = (id, field, value) => {
@@ -236,301 +236,25 @@ export default function CompleteOrderModal({
         className="mes-modal-box mes-complete-order-modal"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 1. Header (Flat Matte Enterprise) */}
-        <div className="mes-material-header">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-[2px] bg-emerald-600 text-white flex items-center justify-center font-bold">
-              <Check size={18} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold text-slate-900 tracking-tight">
-                  {isSortingOrder
-                    ? 'Nghiệm thu & Hoàn thành Lệnh Sorting (CDSO)'
-                    : 'Nghiệm thu & Hoàn thành lệnh công đoạn'}
-                </h2>
-                <span className="text-xs font-mono font-bold text-blue-900 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-[2px]">
-                  {order.stepOrder}
-                </span>
-                <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-[2px]">
-                  Trạm Sorting/Rework G01
-                </span>
-                {isSortingOrder && (
-                  <span className="text-[11px] font-semibold text-blue-800 bg-blue-50 border border-blue-300 px-2 py-0.5 rounded-[2px]">
-                    Không dùng NVL phụ tùng
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                {isSortingOrder
-                  ? 'Nghiệm thu phân loại các con hàng chính trong lệnh (Không dùng NVL), xác nhận nhân công và thời gian chạy'
-                  : 'Nghiệm thu chi tiết linh kiện cấu thành theo BOM, xác nhận nhân công và thời gian chạy thực tế'}
-              </p>
-            </div>
-          </div>
+        <header className="completion-compact-header">
+          <div className="completion-compact-title"><h2>Hoàn thành lệnh</h2><span>{isSortingOrder ? order.stageOrder || order.stepOrder.replace(/\([^)]*\)$/, '') : order.stepOrder}{isSortingOrder && orders?.length > 1 ? ` · ${orders.length} chi tiết` : ''}</span></div>
+          <fieldset className="completion-mode-switch"><legend className="sr-only">Hình thức hoàn thành</legend>
+            <label><input type="radio" name="completion-mode" value="partial" checked={completionMode === 'partial'} onChange={() => setCompletionMode('partial')} />Hoàn thành một phần</label>
+            <label><input type="radio" name="completion-mode" value="all" checked={completionMode === 'all'} onChange={() => setCompletionMode('all')} />Hoàn thành toàn bộ</label>
+          </fieldset>
+          <button type="button" className="completion-compact-close" onClick={onClose} title="Đóng cửa sổ" aria-label="Đóng hoàn thành lệnh">×</button>
+        </header>
 
-          <button
-            type="button"
-            className="w-8 h-8 rounded-[2px] border border-slate-300 text-slate-500 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
-            onClick={onClose}
-            title="Đóng cửa sổ"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* 2. Master Information Form - 2 Columns Layout for Easy Auditing & Cross-Referencing */}
-        <div className="bg-slate-50 border-b border-slate-300 px-6 py-3 text-xs flex-shrink-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-2">
-            {/* CỘT TRÁI: Phân loại, Lệnh công đoạn, Đối tượng, Mã hàng */}
-            <div className="space-y-2">
-              {/* 7. Phân loại (THEO MASTER CUNG CẤP - KHÔNG CHO PHÉP SỬA) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Lock size={12} className="text-slate-500" />
-                  <span>7. Phân loại:</span>
-                </span>
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    readOnly
-                    disabled
-                    value={classification}
-                    className="w-full text-xs font-bold font-mono border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-200/80 text-slate-800 cursor-not-allowed select-none"
-                    title="Phân loại cố định theo Master dữ liệu lệnh công đoạn (Không cho phép sửa)"
-                  />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9.5px] font-bold text-slate-500 bg-slate-300/80 px-1 py-0.2 rounded-[2px]">
-                    Khóa
-                  </span>
-                </div>
-              </div>
-
-              {/* 8. Lệnh công đoạn (Khóa theo lệnh chọn) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <FileText size={13} className="text-blue-700" />
-                  <span>8. Lệnh công đoạn:</span>
-                </span>
-                <input
-                  type="text"
-                  readOnly
-                  disabled
-                  value={`${order.stepOrder} (${order.date || '15/10/2026'})`}
-                  className="w-full text-xs font-mono font-bold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-100 text-blue-900 cursor-not-allowed select-none"
-                />
-              </div>
-
-              {/* 9. Đối tượng (CHO PHÉP EDIT - CHỌN ĐỐI TƯỢNG) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Building size={13} className="text-blue-700" />
-                  <span>9. Đối tượng:</span>
-                </span>
-                <select
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none cursor-pointer"
-                  value={objectEntity}
-                  onChange={(e) => setObjectEntity(e.target.value)}
-                >
-                  {OBJECT_ENTITY_OPTIONS.map((opt) => (
-                    <option key={opt.code} value={opt.name}>
-                      {opt.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* b. Mã hàng & Tên thành phẩm (Khóa theo lệnh) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Layers size={13} className="text-indigo-700" />
-                  <span>b. Mã hàng & SP:</span>
-                </span>
-                <input
-                  type="text"
-                  readOnly
-                  disabled
-                  value={`${order.productCode} — ${order.productName}`}
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-100 text-slate-900 truncate cursor-not-allowed select-none"
-                  title={`${order.productCode} — ${order.productName}`}
-                />
-              </div>
-
-              {/* Tồn kho PX của mã sản phẩm master */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Warehouse size={13} className="text-emerald-700" />
-                  <span>Tồn kho PX:</span>
-                </span>
-                <div className="flex-1 flex items-center gap-2">
-                  <div className="flex-1 border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-100 text-slate-800 text-xs font-mono font-bold flex items-center justify-between">
-                    <span className="text-[11px] font-sans font-normal text-slate-600 truncate mr-1">
-                      Tồn SP <strong className="font-mono text-blue-900">{order.productCode}</strong>:
-                    </span>
-                    <span className="text-emerald-800 font-extrabold text-[13px] whitespace-nowrap">
-                      {Number(masterProductStock).toLocaleString()} Pcs
-                    </span>
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold px-2 py-1 rounded-[2px] border flex items-center gap-1 shrink-0 ${
-                      isMasterStockSufficient
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                        : 'bg-rose-50 text-rose-800 border-rose-300'
-                    }`}
-                  >
-                    {isMasterStockSufficient ? (
-                      <>
-                        <CheckCircle2 size={11} className="text-emerald-600" />
-                        <span>Đủ tồn PX</span>
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle size={11} className="text-rose-600" />
-                        <span>Thiếu tồn</span>
-                      </>
-                    )}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* CỘT PHẢI: Người tạo, Bộ phận, Kho PX, Nhân công & Giờ làm */}
-            <div className="space-y-2">
-              {/* a. Người tạo phiếu (KHÓA THÊM - CHÍNH LÀ USER TÀI KHOẢN MES) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <UserCheck size={13} className="text-slate-600" />
-                  <span>a. Người tạo phiếu:</span>
-                </span>
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    readOnly
-                    disabled
-                    value={creatorUser}
-                    className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-slate-200/80 text-slate-800 cursor-not-allowed select-none truncate"
-                    title="Người tạo phiếu khóa cố định theo tài khoản đăng nhập MES"
-                  />
-                  <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9.5px] font-bold text-slate-500 bg-slate-300/80 px-1 py-0.2 rounded-[2px]">
-                    MES User
-                  </span>
-                </div>
-              </div>
-
-              {/* c. Bộ phận (CHO PHÉP EDIT - CHỌN TỪ DANH SÁCH BỘ PHẬN) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Briefcase size={13} className="text-indigo-700" />
-                  <span>c. Bộ phận:</span>
-                </span>
-                <select
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none cursor-pointer"
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                >
-                  {DEPARTMENT_OPTIONS.map((dept) => (
-                    <option key={dept.code} value={dept.name}>
-                      {dept.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* d. Mã kho phân xưởng (CHO PHÉP EDIT - MẶC ĐỊNH LẤY TỪ KHO NHẬP KHI LẤY NVL LINK SANG) */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Warehouse size={13} className="text-emerald-700" />
-                  <span>d. Kho phân xưởng:</span>
-                </span>
-                <select
-                  className="w-full text-xs font-semibold border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none cursor-pointer"
-                  value={workshopWarehouse}
-                  onChange={(e) => setWorkshopWarehouse(e.target.value)}
-                  title="Mặc định nhận từ kho nhập khi lấy NVL, cho phép chọn kho khác nếu cần"
-                >
-                  {WORKSHOP_WAREHOUSE_OPTIONS.map((wh) => (
-                    <option key={wh.code} value={wh.name}>
-                      {wh.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Số lượng nhân công */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Users size={13} className="text-emerald-700" />
-                  <span>Nhân công:</span>
-                </span>
-                <div className="flex items-center">
-                  <button
-                    type="button"
-                    className="w-7 h-7 border border-slate-300 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-bold flex items-center justify-center cursor-pointer rounded-l-[2px]"
-                    onClick={() => setWorkersCount((prev) => Math.max(1, prev - 1))}
-                    title="Giảm 1 nhân công"
-                  >
-                    <Minus size={13} />
-                  </button>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    className="w-14 h-7 border-y border-slate-300 bg-white px-1 text-center text-xs font-bold font-mono text-emerald-800 focus:border-blue-600 outline-none"
-                    value={workersCount}
-                    onChange={(e) => setWorkersCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    title="Số lượng nhân công"
-                  />
-                  <button
-                    type="button"
-                    className="w-7 h-7 border border-slate-300 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-emerald-800 font-bold flex items-center justify-center cursor-pointer rounded-r-[2px]"
-                    onClick={() => setWorkersCount((prev) => prev + 1)}
-                    title="Tăng 1 nhân công"
-                  >
-                    <Plus size={13} />
-                  </button>
-                  <span className="text-[11px] text-slate-500 ml-2">người thực hiện</span>
-                </div>
-              </div>
-
-              {/* Giờ làm việc */}
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                  <Clock size={13} className="text-amber-700" />
-                  <span>Giờ làm việc:</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    step="0.25"
-                    min="0.1"
-                    className="w-20 h-7 border border-slate-300 rounded-[2px] bg-white px-2 text-center text-xs font-bold font-mono text-amber-900 focus:border-blue-600 outline-none"
-                    value={workHours}
-                    onChange={(e) => setWorkHours(Math.max(0.1, parseFloat(e.target.value) || 0.1))}
-                    title="Số giờ làm việc (h) tính tự động từ giờ bắt đầu đến kết thúc trên MES"
-                  />
-                  <span className="text-[11px] font-semibold text-slate-700">giờ</span>
-                  <span className="text-[10.5px] text-slate-400 font-mono">
-                    ({startTime.split(' ')[0]} ➔ {endTime.split(' ')[0]})
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Hàng full-width: Diễn giải / Ghi chú */}
-            <div className="lg:col-span-2 flex items-center gap-2 pt-1.5 border-t border-slate-200">
-              <span className="font-bold text-slate-700 whitespace-nowrap text-xs w-32 shrink-0 flex items-center gap-1.5">
-                <FileText size={13} className="text-amber-700" />
-                <span>Diễn giải / Ghi chú:</span>
-              </span>
-              <input
-                type="text"
-                className="w-full text-xs border border-slate-300 rounded-[2px] px-2.5 py-1.5 bg-white text-slate-900 focus:border-blue-600 outline-none font-mono"
-                value={noteDescription}
-                onChange={(e) => setNoteDescription(e.target.value)}
-                placeholder="Ghi chú chi tiết quá trình nghiệm thu hoàn thành lệnh..."
-              />
-            </div>
-          </div>
-        </div>
+        <CompleteOrderMaster
+          order={order} sortingOrders={isSortingOrder ? orders : null} isSortingOrder={isSortingOrder} quantity={quantity} setQuantity={setQuantity} classification={classification} creatorUser={creatorUser}
+          objectEntity={objectEntity} setObjectEntity={setObjectEntity}
+          department={department} setDepartment={setDepartment}
+          workshopWarehouse={workshopWarehouse} setWorkshopWarehouse={setWorkshopWarehouse}
+          workersCount={workersCount} setWorkersCount={setWorkersCount}
+          workHours={workHours} setWorkHours={setWorkHours}
+          noteDescription={noteDescription} setNoteDescription={setNoteDescription}
+          startTime={startTime} endTime={endTime} masterProductStock={masterProductStock}
+        />
 
         {/* 3. Action & Filter Strip */}
         <div className="bg-white border-b border-slate-300 px-5 py-2 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
@@ -541,7 +265,7 @@ export default function CompleteOrderModal({
               <input
                 type="text"
                 className="pl-7 pr-3 py-1.5 text-xs border border-slate-300 rounded-[2px] bg-white focus:border-blue-600 outline-none w-56 sm:w-64"
-                placeholder="Tìm mã hoặc tên NVL con..."
+                placeholder={isSortingOrder ? 'Tìm mã hoặc tên hàng...' : 'Tìm mã hoặc tên NVL con...'}
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
               />
@@ -559,7 +283,7 @@ export default function CompleteOrderModal({
             <div className="text-xs bg-slate-100 border border-slate-300 px-3 py-1.5 font-medium text-slate-700 rounded-[2px] whitespace-nowrap">
               <span>
                 {isSortingOrder
-                  ? <>Danh sách con hàng: <strong className="text-slate-900 font-bold">{parts.length} con hàng chính</strong></>
+                  ? <>Mặt hàng Sorting: <strong className="text-slate-900 font-bold">{parts.length} mặt hàng</strong></>
                   : <>BOM sử dụng: <strong className="text-slate-900 font-bold">{parts.length} mã NVL</strong></>}
               </span>
             </div>
@@ -567,26 +291,26 @@ export default function CompleteOrderModal({
         </div>
 
         {/* 4. Open Table: Bung chi tiết từng con hàng chính hoặc NVL con */}
-        <div className="flex-1 overflow-auto bg-slate-100 p-3">
+        <div className="completion-detail-body flex-1 overflow-auto bg-slate-100">
           {filteredParts.length === 0 ? (
             <div className="p-12 text-center text-slate-500 bg-white border border-slate-300 rounded-[2px]">
               <AlertCircle size={32} className="mx-auto mb-2 text-slate-400" />
               <p className="font-medium text-sm">Không tìm thấy con hàng nào khớp với từ khóa tìm kiếm</p>
             </div>
           ) : (
-            <table className="w-full text-xs border-collapse bg-white border border-slate-300 shadow-none">
+            <table className="completion-detail-grid w-full text-xs border-collapse bg-white shadow-none">
               <thead>
                 <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-left">
                   <th className="py-2.5 px-3 text-center w-12 border-r border-slate-200">#</th>
                   <th className="py-2.5 px-3 w-44 border-r border-slate-200">
-                    {isSortingOrder ? 'Mã con hàng chính' : 'Mã linh kiện NVL'}
+                    {isSortingOrder ? 'Mã hàng' : 'Mã linh kiện NVL'}
                   </th>
                   <th className="py-2.5 px-3 min-w-[260px] border-r border-slate-200">
-                    {isSortingOrder ? 'Tên con hàng chính cấu thành trong lệnh' : 'Tên nguyên vật liệu con cấu thành'}
+                    {isSortingOrder ? 'Tên vật tư, hàng hóa' : 'Tên nguyên vật liệu con cấu thành'}
                   </th>
                   <th className="py-2.5 px-2.5 text-center w-16 border-r border-slate-200">ĐVT</th>
                   <th className="py-2.5 px-3 text-right w-32 border-r border-slate-200 bg-slate-50">
-                    {isSortingOrder ? 'SL con hàng theo lệnh' : 'SL theo lệnh'}
+                    {isSortingOrder ? 'SL theo chi tiết lệnh' : 'SL theo lệnh'}
                   </th>
                   <th className="py-2.5 px-3 text-center w-52 border-r border-slate-200 bg-emerald-50/50 text-emerald-950">
                     SL Đạt (OK)
@@ -784,6 +508,9 @@ export default function CompleteOrderModal({
                 onConfirm &&
                   onConfirm({
                     orderId: order.id,
+                    orderIds: isSortingOrder ? parts.map(p => p.id) : [order.id],
+                    completionMode,
+                    quantity,
                     stepOrder: order.stepOrder,
                     classification,
                     objectEntity,
@@ -803,8 +530,7 @@ export default function CompleteOrderModal({
                 onClose();
               }}
             >
-              <Check size={16} />
-              <span>Xác nhận hoàn thành lệnh</span>
+              <span>{completionMode === 'all' ? 'Xác nhận hoàn thành toàn bộ' : 'Xác nhận hoàn thành một phần'}</span>
             </button>
           </div>
         </div>

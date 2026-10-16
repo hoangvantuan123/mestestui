@@ -8,11 +8,12 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
 
   if (!isOpen || !order) return null;
 
-  const bomItems = getOrderBOM(order.productCode) || [];
+
   const qtyNum = parseFloat(String(order.reworkQty || '20').replace(/,/g, '')) || 20;
 
   const isSortingOrder = order.stage === 'CDSO' || (order.products && order.products.length > 0);
-  const sortingProducts = order.products || [];
+  const bomItems = isSortingOrder ? [] : getOrderBOM(order.productCode) || [];
+  const sortingProducts = isSortingOrder ? [{ itemCode: order.productCode, itemName: order.productName, qty: qtyNum, unit: order.unit || 'Pcs', description: order.description || '' }] : [];
 
   return (
     <div className="mes-modal-backdrop" onClick={onClose}>
@@ -51,7 +52,7 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
             onClick={() => setActiveMainTab('materials')}
           >
             {isSortingOrder
-              ? `Danh sách con hàng chính (${sortingProducts.length || 1})`
+              ? `Mặt hàng Sorting`
               : `Chi tiết vật liệu (${bomItems.length})`}
           </button>
           <button
@@ -91,7 +92,7 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
           </button>
         </div>
 
-        {/* Tab 1: Chi tiết vật liệu / Con hàng chính */}
+        {/* Tab 1: Chi tiết vật liệu / Mặt hàng Sorting */}
         {activeMainTab === 'materials' && (
           <div className="detail-tab-content">
             {/* Sub-tabs */}
@@ -102,7 +103,7 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
                 onClick={() => setActiveSubTab('requisition')}
               >
                 {isSortingOrder
-                  ? `Con hàng trong lệnh (${sortingProducts.length || 1})`
+                  ? `Chi tiết lệnh thao tác`
                   : `NVL cần lĩnh (${bomItems.length})`}
               </button>
               <button
@@ -121,7 +122,7 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
                   <>
                     <div className="p-2 mb-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-900 flex items-center justify-between">
                       <span className="font-semibold">
-                        Lệnh Sorting không sử dụng NVL phụ tùng. Lệnh bao gồm {sortingProducts.length} con hàng chính cấu thành bên dưới:
+                        Chi tiết lệnh thao tác Sorting chỉ có một mặt hàng, không sử dụng BOM nguyên vật liệu.
                       </span>
                       <span className="font-mono font-bold">Tổng SL: {order.reworkQty} Pcs</span>
                     </div>
@@ -129,8 +130,8 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
                       <thead>
                         <tr>
                           <th className="col-num text-center">#</th>
-                          <th>Mã con hàng chính</th>
-                          <th>Tên con hàng chính</th>
+                          <th>Mã hàng chính</th>
+                          <th>Tên vật tư, hàng hóa chính</th>
                           <th className="text-right">SL Cần Sort</th>
                           <th className="text-center">Đơn vị</th>
                           <th className="text-center">Loại hàng</th>
@@ -149,7 +150,7 @@ export default function OrderDetailModal({ isOpen, onClose, order }) {
                             <td className="text-center text-slate-600">{item.unit || 'Pcs'}</td>
                             <td className="text-center">
                               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                Con hàng chính
+                                Mặt hàng Sorting
                               </span>
                             </td>
                             <td className="text-slate-600 text-xs">

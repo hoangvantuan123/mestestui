@@ -44,7 +44,6 @@ export default function SortingTable({
             <th className="col-status text-center">Trạng thái</th>
             <th className="col-step-order">Số lệnh công đoạn</th>
             <th className="col-date text-center">Ngày</th>
-            <th className="col-stage text-center">Công đoạn</th>
             <th className="col-category">Phân loại</th>
             <th className="col-prod-code">
               {isSorting ? 'Mã SP (Con hàng)' : 'Mã SP (Rework)'}
@@ -142,11 +141,6 @@ export default function SortingTable({
                     {/* 5. Ngày */}
                     <td className="col-date text-center font-mono text-slate-700">{order.date}</td>
 
-                    {/* 6. Công đoạn */}
-                    <td className="col-stage text-center">
-                      <span className="stage-badge">{order.stage}</span>
-                    </td>
-
                     {/* 7. Phân loại */}
                     <td className="col-category">
                       <span className={`category-tag ${isRMA ? 'cat-rma' : 'cat-internal'}`}>
@@ -222,7 +216,7 @@ export default function SortingTable({
                   {/* Dòng mở rộng: Danh sách các con hàng chính trong lệnh (Không dùng NVL) */}
                   {isExpanded && order.products && (
                     <tr className="bg-blue-50/60 border-b-2 border-blue-300">
-                      <td colSpan={15} className="py-2.5 px-4 pl-12">
+                      <td colSpan={14} className="py-2.5 px-4 pl-12">
                         <div className="bg-white rounded border border-blue-300 p-3 shadow-xs">
                           <div className="flex items-center justify-between mb-2">
                             <div className="text-xs font-bold text-blue-900 flex items-center gap-2">

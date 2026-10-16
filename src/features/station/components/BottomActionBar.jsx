@@ -15,6 +15,7 @@ export default function BottomActionBar({
   activeOrder,
   onStartOrder,
   onCompleteOrder,
+  completionCount = 0,
   onGetMaterial,
   onFinishDefect,
   onReceiveLTT,
@@ -49,10 +50,11 @@ export default function BottomActionBar({
             className={`action-circle-btn ${hasActive ? 'btn-green-highlight' : 'btn-disabled'}`}
             onClick={onCompleteOrder}
             title="Nghiệm thu & Hoàn thành lệnh"
+            aria-label={completionCount > 1 ? `Hoàn thành (${completionCount})` : 'Hoàn thành'}
           >
             <CheckCircle2 size={19} />
           </button>
-          <span className="action-item-label font-semibold text-slate-800">Hoàn thành</span>
+          <span className="action-item-label font-semibold text-slate-800">Hoàn thành{completionCount > 1 ? ` (${completionCount})` : ''}</span>
         </div>
 
         {/* 3. Lấy vật tư (Yellow Highlighted Circle) */}
