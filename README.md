@@ -24,4 +24,10 @@ Mở `http://127.0.0.1:5173/production` hoặc chọn `HN-BE-TC01 · Máy bế t
 
 `ProductionStationPage.jsx` chứa bảng lệnh và thao tác máy thường. `components/CompleteProductionModal.jsx` chứa các tab Thông tin chung / Khai báo lỗi, hoàn thành một phần/toàn bộ. `ProductionErrorRows.jsx` dùng chung cho bảng lỗi chung và từng NVL. `data/demoProduction.js` chứa dữ liệu mẫu. CSS được giới hạn trong `.production-station` để không thay đổi màn hình Rework/Sorting.
 
-Các thao tác là demo trong bộ nhớ. Lấy vật liệu, hoàn vật tư và vận hành máy hiện thông báo mô phỏng; chưa có chứng từ kho/API. File `MES-Demo.html` chưa được đóng gói lại với màn hình mới.
+Các thao tác là demo trong bộ nhớ. Lấy vật liệu, hoàn vật tư và vận hành máy hiện thông báo mô phỏng; chưa có chứng từ kho/API. File `MES-Demo.html` đã được đóng gói lại với màn hình mới.
+
+## Máy Xả cuộn/Chia cuộn/Chia tờ
+
+Trong màn hình đổi máy, chọn `HN-XC-01 · Máy Xả cuộn/Chia cuộn/Chia tờ`, sau đó xác nhận lên ca. Máy dùng chung giao diện máy bế sóng, gồm bảng lệnh, bộ lọc, thanh thao tác và màn hình hoàn thành / khai báo lỗi. Có sáu lệnh mẫu cho ba thao tác Xả cuộn, Chia cuộn và Chia tờ.
+
+Đường dẫn xem trực tiếp: `http://127.0.0.1:5173/production?machine=HN-XC-01`. Mã máy được lưu trong URL để tải lại vẫn mở đúng máy. Bản offline có cùng lựa chọn máy.

@@ -4,6 +4,7 @@ import './change-machine.css';
 
 export const MACHINE_LIST = [
   { id: 'HN-BE-TC01', name: 'Máy bế thủ công 1800', type: 'production', typeName: 'Sản xuất thường', stage: 'CD05', line: 'Tổ HT Carton GSHN', status: 'Sẵn sàng', orderInRun: 'CD05-0926-0743(512)' },
+  { id: 'HN-XC-01', name: 'Máy Xả cuộn/Chia cuộn/Chia tờ', type: 'production', typeName: 'Xả cuộn/Chia cuộn/Chia tờ', stage: 'CD01', line: 'Tổ Cắt chia cuộn / Chia tờ', status: 'Sẵn sàng', orderInRun: 'CD01-0826-0020(670)' },
   { id: 'RWK-G01', name: 'Trạm Rework Sửa chữa G01', type: 'rework', typeName: 'Rework', stage: 'CDRE', line: 'Line G01 - PX1B', status: 'Sẵn sàng', orderInRun: 'CDRE-0626-0008' },
   { id: 'SORT-G01', name: 'Trạm Sorting Phân loại Ngoại quan G01', type: 'sorting', typeName: 'Sorting', stage: 'CDSO', line: 'Line ST01 - PX QC', status: 'Sẵn sàng', orderInRun: 'CDSO-0626-0006' },
 ];
@@ -30,7 +31,7 @@ const TEAMS = [
   { id: 'gs2', name: 'Tổ SX GS2', leader: 'Nguyễn Văn An', members: MEMBERS.slice(10, 18) },
 ];
 
-export default function ChangeMachineModal({ isOpen, onClose, onSelectMachine }) {
+export default function ChangeMachineModal({ isOpen, onClose, onSelectMachine, initialScreen = false }) {
   const dialog = useRef(null);
   const [machineId, setMachineId] = useState('');
   const [teamId, setTeamId] = useState('gs1');
@@ -67,7 +68,7 @@ export default function ChangeMachineModal({ isOpen, onClose, onSelectMachine })
 
   return (
     <dialog ref={dialog} className="shift-screen" aria-labelledby="shift-title" onCancel={e => { e.preventDefault(); onClose(); }}>
-      <button className="shift-close" type="button" onClick={onClose} aria-label="Đóng đổi máy"><X size={22} /></button>
+      {!initialScreen && <button className="shift-close" type="button" onClick={onClose} aria-label="Đóng đổi máy"><X size={22} /></button>}
       <div className="shift-content">
         <div className="shift-brand">
           <div className="shift-logo"><img src="/assets/goldsun/goldsun-icon.png" alt="" /><b>GOLDSUN</b></div>

@@ -3,11 +3,12 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import ReworkStationPage from '../features/station/ReworkStationPage';
 import SortingStationPage from '../features/station/SortingStationPage';
 import ProductionStationPage from '../features/production/ProductionStationPage';
+import MachineSelectionPage from '../features/station/MachineSelectionPage';
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/rework" replace />,
+    element: <MachineSelectionPage />,
   },
   {
     path: '/rework',
@@ -23,10 +24,10 @@ export const router = createBrowserRouter([
   },
   {
     path: '/app',
-    element: <Navigate to="/rework" replace />,
+    element: <Navigate to="/" replace />,
   },
   {
     path: '*',
-    element: <Navigate to="/rework" replace />,
+    element: <Navigate to="/" replace />,
   },
 ]);

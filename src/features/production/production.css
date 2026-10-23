@@ -1440,6 +1440,10 @@
             display: block;
         }
     
+.production-station .material-progress{display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.production-station .material-progress-quantity{font-size:11px;color:#64748b;font-variant-numeric:tabular-nums;white-space:nowrap}
+.production-station .badge-partial{color:#a16207;background:#fef3c7}
+.production-station .badge-received{color:#167357;background:#dcfce7}
 /* React host, accessible dialog and responsive adjustments. */
 .production-station{height:100dvh;min-height:0;overflow:auto;line-height:1.4}
 .production-station [hidden]{display:none!important}

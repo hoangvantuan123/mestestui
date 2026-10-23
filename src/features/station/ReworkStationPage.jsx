@@ -189,7 +189,7 @@ export default function ReworkStationPage() {
     setStationName(mach.name);
     if (mach.type !== 'rework') {
       showToast(`Chuyển sang ${mach.name}...`, 'info');
-      navigate(`/${mach.type}`, { state: { shiftTeam: mach.team ? { name: mach.team, leader: mach.leader, count: mach.members.length } : null } });
+      navigate(`/${mach.type}${mach.type === 'production' ? `?machine=${encodeURIComponent(mach.id)}` : ''}`, { state: { shiftTeam: mach.team ? { name: mach.team, leader: mach.leader, count: mach.members.length } : null } });
     } else {
       showToast(`Đã chuyển sang vận hành máy: ${mach.id} - ${mach.name}`, 'info');
     }

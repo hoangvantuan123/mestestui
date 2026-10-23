@@ -91,6 +91,27 @@ export const productionOrders = [
     "start": "—"
   }
 ];
+// Cùng cấu trúc dữ liệu để dùng lại giao diện máy bế sóng.
+const rollCuttingProducts = [
+  ['CD01-0826-0020(670)', 'PHO-2LE-04293', 'GS5 - Phôi-BDL-2E-MINHAN125-HHV150-845x1085', 'Tấm'],
+  ['CD01-0826-0020(671)', 'GTO-WOF-00333', 'WF-IK-Indonesia-D70-860x470', 'Tờ'],
+  ['CD01-0826-0020(672)', 'GTO-ART-00076', 'ART-D100-630X450', 'Tờ'],
+  ['CD01-0826-0015(650)', 'GTO-DPT-08134', 'DUP-XSD-D350-850x890', 'Tờ'],
+  ['CD01-0826-0015(641)', 'GTO-DPT-07208', 'DUP-Thái Lan-D250-1280x760', 'Tờ'],
+  ['CD01-0826-0015(642)', 'GTO-DPT-00546', 'DUP-JIULONG-D300-1210X1345', 'Tờ'],
+];
+export const rollCuttingOrders = productionOrders.map((order, index) => ({
+  ...order,
+  id: rollCuttingProducts[index][0],
+  code: rollCuttingProducts[index][0],
+  operation: ['Xả cuộn', 'Chia cuộn', 'Chia tờ'][index % 3],
+  productCode: rollCuttingProducts[index][1],
+  productName: rollCuttingProducts[index][2],
+  machine: 'HN-XC-01',
+  unit: rollCuttingProducts[index][3],
+  start: order.start === '—' ? '—' : '08:00 23/10',
+}));
+
 export const errorCodes = [
             { code: 'NG-001', name: 'Rách / hỏng vật tư' },
             { code: 'NG-002', name: 'Sai kích thước' },
